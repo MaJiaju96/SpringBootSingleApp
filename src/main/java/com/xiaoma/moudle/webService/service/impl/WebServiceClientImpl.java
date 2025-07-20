@@ -3,20 +3,49 @@ package com.xiaoma.moudle.webService.service.impl;
 import com.xiaoma.moudle.webService.service.DhcService;
 import com.xiaoma.moudle.webService.service.WebServiceClient;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.endpoint.Client;
 import org.apache.cxf.frontend.ClientProxy;
 import org.apache.cxf.jaxws.JaxWsProxyFactoryBean;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
+import org.apache.pdfbox.util.Charsets;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 @Service
 public class WebServiceClientImpl implements WebServiceClient {
 
+    @SneakyThrows
     public static void main(String[] args) {
-        String str = sendSoapRequest();
-        System.out.println(str);
+//        String str = sendSoapRequest();
+//        System.out.println(str);
+
+        String str = "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:ser=\"http://service.boot.spdrt.com/\">\n" +
+                "   <soapenv:Header/>\n" +
+                "   <soapenv:Body>\n" +
+                "      <ser:getMedicalStaffInformation>\n" +
+                "         <!--Optional:-->\n" +
+                "         <arg0>ExamReportNew</arg0>\n" +
+                "         <!--Optional:-->\n" +
+                "         <arg1><![CDATA[<Request>\n" +
+                " <ExamReportNew>\n" +
+                "  <CheckFlow>15281626346230643670</CheckFlow>\n" +
+                "  <CheckLink>http://192.168.2.89/ClinicRptViewFSCT/2018-06-05/0007097691_蒋熙雯/C20180605-504/C20180605-504.html</CheckLink>\n" +
+                "  <ExecLink>http://192.168.2.7/RoganViewPro-X/PacsConnect/VPXShowGUI.aspx?UserName=administrator&Password=XYPACS&Action=ShowImageViewer&AccessionNumber=C20180605-504</ExecLink>\n" +
+                "</ExamReportNew>\n" +
+                "</Request> ]]></arg1>\n" +
+                "      </ser:getMedicalStaffInformation>\n" +
+                "   </soapenv:Body>\n" +
+                "</soapenv:Envelope>";
+
+        String result = sendWebServiceRequest("http://192.168.32.4:9898/ws/spdrt/xy?wsdl" , "" , str);
+        System.out.println(result);
     }
 
     @SneakyThrows
@@ -92,5 +121,32 @@ public class WebServiceClientImpl implements WebServiceClient {
                 "        </ExamItemsList>\n" +
                 "    </ExamReportNew>\n" +
                 "</Request>]]>";
+    }
+
+
+    public static String sendWebServiceRequest(String soapEndpointUrl, String soapAction, String xmlRequest) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(soapEndpointUrl).openConnection();
+        connection.setDoOutput(true);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "text/xml; charset=UTF-8");
+        connection.setRequestProperty("Content-Length", String.valueOf(xmlRequest.getBytes(Charsets.UTF_8).length));
+        if (StringUtils.isNotBlank(soapAction)){
+            connection.setRequestProperty("SOAPAction", soapAction);
+        }
+
+        OutputStream outputStream = connection.getOutputStream();
+        outputStream.write(xmlRequest.getBytes(Charsets.UTF_8));
+        outputStream.close();
+
+        // 读取响应内容
+        InputStream inputStream = connection.getInputStream();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        StringBuilder response = new StringBuilder();
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+        reader.close();
+        return response.toString();
     }
 }
